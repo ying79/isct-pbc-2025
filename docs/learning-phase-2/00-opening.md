@@ -1,6 +1,25 @@
 # Section 0: Opening
 
-## 0.1 Today's Goals
+## 0.1 Instructor Team
+
+### Main Instructor
+Sanhe Kim
+
+- Leads the workshop
+- Explains concepts and demonstrates
+- Available for questions throughout
+
+### Support Team (3 Supporters)
+Masaaki Sano
+Ryo Imahashi
+Junichiro Ueno
+
+- Circulate around the room throughout
+- Help with individual problems
+- Provide one-on-one guidance
+- Ensure everyone can keep up
+
+## 0.2 Today's Goals
 
 Bubble is a no-code tool that allows you to build applications through intuitive visual operations. It’s a powerful tool for developing prototype or relatively simple applications quickly and cost-effectively.
 
@@ -16,7 +35,7 @@ By the end of this workshop, you will:
 4. **Learn programming fundamentals** - Variables, functions, conditionals, loops, and more
 5. **Experience team development** - Use Git and GitHub like professional developers do
 
-## 0.2 Today's Schedule
+## 0.3 Today's Schedule
 
 | Time | Activity | What You'll Do |
 |------|----------|----------------|
@@ -29,19 +48,6 @@ By the end of this workshop, you will:
 | 14:00-17:00 | Programming Basics | Learn and practice programming basics |
 | 17:00-18:30 | Team Development | Learn Git and collaboration |
 | 18:30-19:00 | Summary & Q&A | Review and next steps |
-
-## 0.3 Instructor Team
-
-### Main Instructor
-- Leads the workshop
-- Explains concepts and demonstrates
-- Available for questions throughout
-
-### Support Team (some Supporters)
-- Circulate around the room during exercises
-- Help with individual problems
-- Provide one-on-one guidance
-- Ensure everyone can keep up
 
 **Don't hesitate to ask for help!** That's what we're here for.
 

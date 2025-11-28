@@ -464,12 +464,27 @@ export default function NewPetPage() {
   })
 ```
 
-次に、Breedフィールドの下に識別中の表示を追加：
+次に、フォームの中でBreedフィールドの `</div>` の直後に、識別中の表示を追加します。
 
+**追加場所：**
 ```typescript
+<div className="space-y-2">
+  <Label htmlFor="breed">Breed</Label>
+  <Input
+    id="breed"
+    value={formData.breed}
+    onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
+  />
+</div>
+
+{/* ↓ ここに追加 */}
 {identifying && (
   <p className="text-sm text-blue-600">AIが品種を識別中...</p>
 )}
+
+<div className="space-y-2">
+  <Label htmlFor="birthday">Birthday</Label>
+  {/* ... */}
 ```
 
 ### 1-4. 動作確認

@@ -688,8 +688,8 @@ export function HealthChat({ petInfo }: HealthChatProps) {
           <X className="h-4 w-4" />
         </Button>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-4">
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+      <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+        <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-0">
           {messages.length === 0 && (
             <p className="text-sm text-gray-600">
               {petInfo.name}の健康について、何でもお聞きください！
@@ -698,7 +698,7 @@ export function HealthChat({ petInfo }: HealthChatProps) {
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`p-3 rounded-lg ${
+              className={`p-3 rounded-lg break-words ${
                 msg.role === 'user'
                   ? 'bg-blue-100 ml-auto max-w-[80%]'
                   : 'bg-gray-100 mr-auto max-w-[80%]'
@@ -733,24 +733,43 @@ export function HealthChat({ petInfo }: HealthChatProps) {
 
 ### 2-3. ペット詳細ページへの追加
 
-`app/my-pets/[id]/page.tsx`に以下を追加：
+`app/my-pets/[id]/page.tsx`を更新します。
 
-インポート：
+**① インポート文の追加**
+
+ファイル上部の既存のインポート文の後（`import { format } from "date-fns"` の次の行）に追加：
+
 ```typescript
-import { HealthChat } from "@/components/pets/health-chat"
+import { Navbar } from "@/components/layout/navbar"
+import { ArrowLeft, Edit, Trash2 } from "lucide-react"
+import { format } from "date-fns"
+import { HealthChat } from "@/components/pets/health-chat" // ← ここに追加
 ```
 
-return文の最後に追加：
+**② HealthChatコンポーネントの追加**
+
+return文の最後、`</div>`（containerの閉じタグ）の後に追加：
+
 ```typescript
-<HealthChat
-  petInfo={{
-    name: pet.name,
-    category: pet.category,
-    breed: pet.breed,
-    gender: pet.gender,
-    age: pet.birthday ? calculateAge(pet.birthday) : undefined,
-  }}
-/>
+return (
+  <div className="min-h-screen bg-gray-50">
+    <Navbar />
+    <div className="container mx-auto px-4 py-8 max-w-2xl">
+      {/* ... 既存のCard要素など ... */}
+    </div>
+
+    {/* ↓ ここに追加（containerの外、min-h-screenの内側） */}
+    <HealthChat
+      petInfo={{
+        name: pet.name,
+        category: pet.category,
+        breed: pet.breed,
+        gender: pet.gender,
+        age: pet.birthday ? calculateAge(pet.birthday) : undefined,
+      }}
+    />
+  </div>
+)
 ```
 
 ### 2-4. 動作確認
@@ -803,14 +822,20 @@ git push
 
 `app/api/pets/generate-child/route.ts`を作成：
 
+この機能では、**2つのAIを組み合わせて**より良い結果を得ます：
+1. **Gemini API**: 両親の画像から視覚的特徴を分析
+2. **Stable Diffusion XL**: 分析結果を元に子供の画像を生成
+
 ```typescript
 import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.HUGGINGFACE_API_KEY
+    const hfApiKey = process.env.HUGGINGFACE_API_KEY
+    const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY
 
-    if (!apiKey) {
+    if (!hfApiKey || !geminiApiKey) {
       return NextResponse.json(
         { error: 'API key not configured' },
         { status: 500 }
@@ -826,16 +851,84 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // プロンプト生成
-    const prompt = `A cute baby ${parent1.category.toLowerCase()} that is a mix between a ${parent1.breed || parent1.category} and a ${parent2.breed || parent2.category}, adorable, fluffy, high quality, professional photo`
+    // Gemini APIで両親の画像から特徴を抽出
+    let prompt = `A cute baby ${parent1.category.toLowerCase()}`
+
+    // 両親に画像がある場合、Geminiで特徴を分析
+    if (parent1.imageUrl && parent2.imageUrl) {
+      try {
+        const genAI = new GoogleGenerativeAI(geminiApiKey)
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+        // 画像をfetch
+        const [img1Response, img2Response] = await Promise.all([
+          fetch(parent1.imageUrl),
+          fetch(parent2.imageUrl),
+        ])
+
+        const [img1Buffer, img2Buffer] = await Promise.all([
+          img1Response.arrayBuffer(),
+          img2Response.arrayBuffer(),
+        ])
+
+        const img1Base64 = Buffer.from(img1Buffer).toString('base64')
+        const img2Base64 = Buffer.from(img2Buffer).toString('base64')
+
+        // Geminiで両親の特徴を分析
+        const analysisPrompt = `これら2匹のペットの画像を見て、それぞれの視覚的特徴（毛色、模様、目の色、体格など）を簡潔に英語で説明してください。
+
+1枚目: ${parent1.name} (${parent1.breed || parent1.category})
+2枚目: ${parent2.name} (${parent2.breed || parent2.category})
+
+以下の形式で回答してください：
+Parent 1: [毛色], [模様の特徴], [その他の特徴]
+Parent 2: [毛色], [模様の特徴], [その他の特徴]
+Child (mix): [2匹の特徴を組み合わせた子供の想像される見た目]`
+
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: img1Base64,
+            },
+          },
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: img2Base64,
+            },
+          },
+          analysisPrompt,
+        ])
+
+        const analysis = result.response.text()
+        console.log('Gemini analysis:', analysis)
+
+        // 分析結果からChild部分を抽出
+        const childMatch = analysis.match(/Child.*?:(.*?)(?:\n|$)/i)
+        if (childMatch) {
+          const childDescription = childMatch[1].trim()
+          prompt = `A cute baby ${parent1.category.toLowerCase()}, ${childDescription}, adorable, fluffy, high quality, professional photo, cute face, detailed fur texture`
+        }
+      } catch (error) {
+        console.error('Gemini analysis error:', error)
+        // エラーの場合はフォールバック
+        prompt = `A cute baby ${parent1.category.toLowerCase()} that is a mix between a ${parent1.breed || parent1.category} and a ${parent2.breed || parent2.category}, adorable, fluffy, high quality, professional photo`
+      }
+    } else {
+      // 画像がない場合は品種名ベース
+      prompt = `A cute baby ${parent1.category.toLowerCase()} that is a mix between a ${parent1.breed || parent1.category} and a ${parent2.breed || parent2.category}, adorable, fluffy, high quality, professional photo`
+    }
+
+    console.log('Final prompt:', prompt)
 
     // Hugging Face Inference API呼び出し（SDXL Base 1.0）
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+      'https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${hfApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -851,7 +944,9 @@ export async function POST(request: NextRequest) {
     )
 
     if (!response.ok) {
-      throw new Error('Failed to generate image')
+      const errorText = await response.text()
+      console.error('Hugging Face API error:', response.status, errorText)
+      throw new Error(`Failed to generate image: ${response.status} - ${errorText}`)
     }
 
     // 画像データを取得
@@ -869,6 +964,13 @@ export async function POST(request: NextRequest) {
   }
 }
 ```
+
+**実装のポイント：**
+
+1. **Geminiで画像分析**: 両親の画像をGeminiに送信し、毛色・模様・目の色などの特徴を抽出
+2. **動的プロンプト生成**: Geminiの分析結果を使って、具体的な視覚的特徴を含むプロンプトを作成
+3. **フォールバック処理**: 画像がない場合やエラー時は品種名ベースのプロンプトを使用
+4. **エラーハンドリング**: 詳細なエラーログを出力して問題を特定しやすくする
 
 ### 3-2. 画像生成ページの作成
 
@@ -1072,8 +1174,38 @@ export default function GenerateChildPage() {
 
 ### 3-3. ナビゲーションへの追加
 
-`app/my-pets/page.tsx`に画像生成ページへのリンクを追加：
+`app/my-pets/page.tsx`を更新します。
 
+**① インポートの追加**
+
+ファイル上部のインポート文に`Sparkles`を追加（`Plus`の隣）：
+
+```typescript
+import { Plus } from "lucide-react"
+```
+↓
+```typescript
+import { Plus, Sparkles } from "lucide-react"
+```
+
+**② ボタンレイアウトの変更**
+
+ページタイトルとボタンのセクション（72-79行目あたり）を以下のように変更：
+
+**変更前：**
+```typescript
+<div className="flex justify-between items-center mb-8">
+  <h1 className="text-3xl font-bold text-gray-900">My Pets</h1>
+  <Link href="/my-pets/new">
+    <Button>
+      <Plus className="mr-2 h-4 w-4" />
+      Add New Pet
+    </Button>
+  </Link>
+</div>
+```
+
+**変更後：**
 ```typescript
 <div className="flex justify-between items-center mb-8">
   <h1 className="text-3xl font-bold text-gray-900">My Pets</h1>
@@ -1094,10 +1226,10 @@ export default function GenerateChildPage() {
 </div>
 ```
 
-インポートを追加：
-```typescript
-import { Sparkles } from "lucide-react"
-```
+**変更内容：**
+- 既存の`Link`要素を`<div className="flex gap-2">`で囲む
+- その中に新しい「子供を生成」ボタンのリンクを追加
+- 2つのボタンが横並びで表示されるようになります
 
 ### 3-4. 動作確認
 

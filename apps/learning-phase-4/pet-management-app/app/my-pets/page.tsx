@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Navbar } from "@/components/layout/navbar"
-import { Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 
 interface Pet {
   id: string
@@ -69,9 +69,15 @@ export default function MyPetsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Pets</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">My Pets</h1>
+        <div className="flex gap-2">
+          <Link href="/my-pets/generate">
+            <Button variant="outline">
+              <Sparkles className="mr-2 h-4 w-4" />
+              子供を生成
+            </Button>
+          </Link>
           <Link href="/my-pets/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -79,6 +85,7 @@ export default function MyPetsPage() {
             </Button>
           </Link>
         </div>
+      </div>
 
         {pets.length === 0 ? (
           <Card>
@@ -114,7 +121,7 @@ export default function MyPetsPage() {
             ))}
           </div>
         )}
-      </div>
+    
     </div>
   )
 }
